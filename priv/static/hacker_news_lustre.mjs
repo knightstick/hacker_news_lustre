@@ -46,6 +46,9 @@ var List = class {
     return length2;
   }
 };
+function prepend(element2, tail) {
+  return new NonEmpty(element2, tail);
+}
 function toList(elements, tail) {
   return List.fromArray(elements, tail);
 }
@@ -102,28 +105,28 @@ var Error = class extends Result {
 function isEqual(x, y) {
   let values = [x, y];
   while (values.length) {
-    let a = values.pop();
+    let a2 = values.pop();
     let b = values.pop();
-    if (a === b)
+    if (a2 === b)
       continue;
-    if (!isObject(a) || !isObject(b))
+    if (!isObject(a2) || !isObject(b))
       return false;
-    let unequal = !structurallyCompatibleObjects(a, b) || unequalDates(a, b) || unequalBuffers(a, b) || unequalArrays(a, b) || unequalMaps(a, b) || unequalSets(a, b) || unequalRegExps(a, b);
+    let unequal = !structurallyCompatibleObjects(a2, b) || unequalDates(a2, b) || unequalBuffers(a2, b) || unequalArrays(a2, b) || unequalMaps(a2, b) || unequalSets(a2, b) || unequalRegExps(a2, b);
     if (unequal)
       return false;
-    const proto = Object.getPrototypeOf(a);
+    const proto = Object.getPrototypeOf(a2);
     if (proto !== null && typeof proto.equals === "function") {
       try {
-        if (a.equals(b))
+        if (a2.equals(b))
           continue;
         else
           return false;
       } catch {
       }
     }
-    let [keys2, get2] = getters(a);
-    for (let k of keys2(a)) {
-      values.push(get2(a, k), get2(b, k));
+    let [keys2, get2] = getters(a2);
+    for (let k of keys2(a2)) {
+      values.push(get2(a2, k), get2(b, k));
     }
   }
   return true;
@@ -136,34 +139,34 @@ function getters(object3) {
     return [(x) => [...extra, ...Object.keys(x)], (x, y) => x[y]];
   }
 }
-function unequalDates(a, b) {
-  return a instanceof Date && (a > b || a < b);
+function unequalDates(a2, b) {
+  return a2 instanceof Date && (a2 > b || a2 < b);
 }
-function unequalBuffers(a, b) {
-  return a.buffer instanceof ArrayBuffer && a.BYTES_PER_ELEMENT && !(a.byteLength === b.byteLength && a.every((n, i) => n === b[i]));
+function unequalBuffers(a2, b) {
+  return a2.buffer instanceof ArrayBuffer && a2.BYTES_PER_ELEMENT && !(a2.byteLength === b.byteLength && a2.every((n, i) => n === b[i]));
 }
-function unequalArrays(a, b) {
-  return Array.isArray(a) && a.length !== b.length;
+function unequalArrays(a2, b) {
+  return Array.isArray(a2) && a2.length !== b.length;
 }
-function unequalMaps(a, b) {
-  return a instanceof Map && a.size !== b.size;
+function unequalMaps(a2, b) {
+  return a2 instanceof Map && a2.size !== b.size;
 }
-function unequalSets(a, b) {
-  return a instanceof Set && (a.size != b.size || [...a].some((e) => !b.has(e)));
+function unequalSets(a2, b) {
+  return a2 instanceof Set && (a2.size != b.size || [...a2].some((e) => !b.has(e)));
 }
-function unequalRegExps(a, b) {
-  return a instanceof RegExp && (a.source !== b.source || a.flags !== b.flags);
+function unequalRegExps(a2, b) {
+  return a2 instanceof RegExp && (a2.source !== b.source || a2.flags !== b.flags);
 }
-function isObject(a) {
-  return typeof a === "object" && a !== null;
+function isObject(a2) {
+  return typeof a2 === "object" && a2 !== null;
 }
-function structurallyCompatibleObjects(a, b) {
-  if (typeof a !== "object" && typeof b !== "object" && (!a || !b))
+function structurallyCompatibleObjects(a2, b) {
+  if (typeof a2 !== "object" && typeof b !== "object" && (!a2 || !b))
     return false;
   let nonstructural = [Promise, WeakSet, WeakMap, Function];
-  if (nonstructural.some((c) => a instanceof c))
+  if (nonstructural.some((c) => a2 instanceof c))
     return false;
-  return a.constructor === b.constructor;
+  return a2.constructor === b.constructor;
 }
 function makeError(variant, module, line, fn, message, extra) {
   let error = new globalThis.Error(message);
@@ -177,8 +180,19 @@ function makeError(variant, module, line, fn, message, extra) {
 }
 
 // build/dev/javascript/gleam_stdlib/gleam/option.mjs
+var Some = class extends CustomType {
+  constructor(x0) {
+    super();
+    this[0] = x0;
+  }
+};
 var None = class extends CustomType {
 };
+
+// build/dev/javascript/gleam_stdlib/gleam/dynamic.mjs
+function from(a2) {
+  return identity(a2);
+}
 
 // build/dev/javascript/gleam_stdlib/dict.mjs
 var tempDataView = new DataView(new ArrayBuffer(8));
@@ -187,6 +201,65 @@ var BUCKET_SIZE = Math.pow(2, SHIFT);
 var MASK = BUCKET_SIZE - 1;
 var MAX_INDEX_NODE = BUCKET_SIZE / 2;
 var MIN_ARRAY_NODE = BUCKET_SIZE / 4;
+
+// build/dev/javascript/gleam_stdlib/gleam_stdlib.mjs
+function identity(x) {
+  return x;
+}
+
+// build/dev/javascript/gleam_stdlib/gleam/list.mjs
+function do_reverse(loop$remaining, loop$accumulator) {
+  while (true) {
+    let remaining = loop$remaining;
+    let accumulator = loop$accumulator;
+    if (remaining.hasLength(0)) {
+      return accumulator;
+    } else {
+      let item = remaining.head;
+      let rest$1 = remaining.tail;
+      loop$remaining = rest$1;
+      loop$accumulator = prepend(item, accumulator);
+    }
+  }
+}
+function reverse(xs) {
+  return do_reverse(xs, toList([]));
+}
+function do_map(loop$list, loop$fun, loop$acc) {
+  while (true) {
+    let list = loop$list;
+    let fun = loop$fun;
+    let acc = loop$acc;
+    if (list.hasLength(0)) {
+      return reverse(acc);
+    } else {
+      let x = list.head;
+      let xs = list.tail;
+      loop$list = xs;
+      loop$fun = fun;
+      loop$acc = prepend(fun(x), acc);
+    }
+  }
+}
+function map(list, fun) {
+  return do_map(list, fun, toList([]));
+}
+function fold(loop$list, loop$initial, loop$fun) {
+  while (true) {
+    let list = loop$list;
+    let initial = loop$initial;
+    let fun = loop$fun;
+    if (list.hasLength(0)) {
+      return initial;
+    } else {
+      let x = list.head;
+      let rest$1 = list.tail;
+      loop$list = rest$1;
+      loop$initial = fun(initial, x);
+      loop$fun = fun;
+    }
+  }
+}
 
 // build/dev/javascript/gleam_stdlib/gleam/bool.mjs
 function guard(requirement, consequence, alternative) {
@@ -204,6 +277,11 @@ var Effect = class extends CustomType {
     this.all = all;
   }
 };
+function from2(effect) {
+  return new Effect(toList([(dispatch, _) => {
+    return effect(dispatch);
+  }]));
+}
 function none() {
   return new Effect(toList([]));
 }
@@ -215,8 +293,86 @@ var Text = class extends CustomType {
     this.content = content;
   }
 };
+var Element = class extends CustomType {
+  constructor(key, namespace, tag, attrs, children, self_closing, void$) {
+    super();
+    this.key = key;
+    this.namespace = namespace;
+    this.tag = tag;
+    this.attrs = attrs;
+    this.children = children;
+    this.self_closing = self_closing;
+    this.void = void$;
+  }
+};
+var Attribute = class extends CustomType {
+  constructor(x0, x1, as_property) {
+    super();
+    this[0] = x0;
+    this[1] = x1;
+    this.as_property = as_property;
+  }
+};
+
+// build/dev/javascript/lustre/lustre/attribute.mjs
+function attribute(name, value) {
+  return new Attribute(name, from(value), false);
+}
+function style(properties) {
+  return attribute(
+    "style",
+    fold(
+      properties,
+      "",
+      (styles, _use1) => {
+        let name$1 = _use1[0];
+        let value$1 = _use1[1];
+        return styles + name$1 + ":" + value$1 + ";";
+      }
+    )
+  );
+}
+function target(target2) {
+  return attribute("target", target2);
+}
+function src(uri) {
+  return attribute("src", uri);
+}
 
 // build/dev/javascript/lustre/lustre/element.mjs
+function element(tag, attrs, children) {
+  if (tag === "area") {
+    return new Element("", "", tag, attrs, toList([]), false, true);
+  } else if (tag === "base") {
+    return new Element("", "", tag, attrs, toList([]), false, true);
+  } else if (tag === "br") {
+    return new Element("", "", tag, attrs, toList([]), false, true);
+  } else if (tag === "col") {
+    return new Element("", "", tag, attrs, toList([]), false, true);
+  } else if (tag === "embed") {
+    return new Element("", "", tag, attrs, toList([]), false, true);
+  } else if (tag === "hr") {
+    return new Element("", "", tag, attrs, toList([]), false, true);
+  } else if (tag === "img") {
+    return new Element("", "", tag, attrs, toList([]), false, true);
+  } else if (tag === "input") {
+    return new Element("", "", tag, attrs, toList([]), false, true);
+  } else if (tag === "link") {
+    return new Element("", "", tag, attrs, toList([]), false, true);
+  } else if (tag === "meta") {
+    return new Element("", "", tag, attrs, toList([]), false, true);
+  } else if (tag === "param") {
+    return new Element("", "", tag, attrs, toList([]), false, true);
+  } else if (tag === "source") {
+    return new Element("", "", tag, attrs, toList([]), false, true);
+  } else if (tag === "track") {
+    return new Element("", "", tag, attrs, toList([]), false, true);
+  } else if (tag === "wbr") {
+    return new Element("", "", tag, attrs, toList([]), false, true);
+  } else {
+    return new Element("", "", tag, attrs, children, false, false);
+  }
+}
 function text(content) {
   return new Text(content);
 }
@@ -301,9 +457,9 @@ function createElementNode({ prev, next, dispatch, stack }) {
     handlersForEl = registeredHandlers.get(el2);
   }
   const prevHandlers = canMorph ? new Set(handlersForEl.keys()) : null;
-  const prevAttributes = canMorph ? new Set(Array.from(prev.attributes, (a) => a.name)) : null;
+  const prevAttributes = canMorph ? new Set(Array.from(prev.attributes, (a2) => a2.name)) : null;
   let className = null;
-  let style = null;
+  let style2 = null;
   let innerHTML = null;
   for (const attr of next.attrs) {
     const name = attr[0];
@@ -330,7 +486,7 @@ function createElementNode({ prev, next, dispatch, stack }) {
     } else if (name === "class") {
       className = className === null ? value : className + " " + value;
     } else if (name === "style") {
-      style = style === null ? value : style + value;
+      style2 = style2 === null ? value : style2 + value;
     } else if (name === "dangerous-unescaped-html") {
       innerHTML = value;
     } else {
@@ -347,8 +503,8 @@ function createElementNode({ prev, next, dispatch, stack }) {
     if (canMorph)
       prevAttributes.delete("class");
   }
-  if (style !== null) {
-    el2.setAttribute("style", style);
+  if (style2 !== null) {
+    el2.setAttribute("style", style2);
     if (canMorph)
       prevAttributes.delete("style");
   }
@@ -406,14 +562,14 @@ function createElementNode({ prev, next, dispatch, stack }) {
 }
 var registeredHandlers = /* @__PURE__ */ new WeakMap();
 function lustreGenericEventHandler(event) {
-  const target = event.currentTarget;
-  if (!registeredHandlers.has(target)) {
-    target.removeEventListener(event.type, lustreGenericEventHandler);
+  const target2 = event.currentTarget;
+  if (!registeredHandlers.has(target2)) {
+    target2.removeEventListener(event.type, lustreGenericEventHandler);
     return;
   }
-  const handlersForEventTarget = registeredHandlers.get(target);
+  const handlersForEventTarget = registeredHandlers.get(target2);
   if (!handlersForEventTarget.has(event.type)) {
-    target.removeEventListener(event.type, lustreGenericEventHandler);
+    target2.removeEventListener(event.type, lustreGenericEventHandler);
     return;
   }
   handlersForEventTarget.get(event.type)(event);
@@ -521,19 +677,19 @@ var LustreClientApplication2 = class _LustreClientApplication {
   #model = null;
   #update = null;
   #view = null;
-  static start(flags, selector, init2, update2, view) {
+  static start(flags, selector, init3, update3, view2) {
     if (!is_browser())
       return new Error(new NotABrowser());
     const root2 = selector instanceof HTMLElement ? selector : document.querySelector(selector);
     if (!root2)
       return new Error(new ElementNotFound(selector));
-    const app = new _LustreClientApplication(init2(flags), update2, view, root2);
+    const app = new _LustreClientApplication(init3(flags), update3, view2, root2);
     return new Ok((msg) => app.send(msg));
   }
-  constructor([model, effects], update2, view, root2 = document.body, isComponent = false) {
+  constructor([model, effects], update3, view2, root2 = document.body, isComponent = false) {
     this.#model = model;
-    this.#update = update2;
-    this.#view = view;
+    this.#update = update3;
+    this.#view = view2;
     this.#root = root2;
     this.#effects = effects.all.toArray();
     this.#didUpdate = true;
@@ -642,11 +798,11 @@ var is_browser = () => window && window.document;
 
 // build/dev/javascript/lustre/lustre.mjs
 var App = class extends CustomType {
-  constructor(init2, update2, view, on_attribute_change) {
+  constructor(init3, update3, view2, on_attribute_change) {
     super();
-    this.init = init2;
-    this.update = update2;
-    this.view = view;
+    this.init = init3;
+    this.update = update3;
+    this.view = view2;
     this.on_attribute_change = on_attribute_change;
   }
 };
@@ -658,20 +814,8 @@ var ElementNotFound = class extends CustomType {
 };
 var NotABrowser = class extends CustomType {
 };
-function application(init2, update2, view) {
-  return new App(init2, update2, view, new None());
-}
-function element(html) {
-  let init2 = (_) => {
-    return [void 0, none()];
-  };
-  let update2 = (_, _1) => {
-    return [void 0, none()];
-  };
-  let view = (_) => {
-    return html;
-  };
-  return application(init2, update2, view);
+function application(init3, update3, view2) {
+  return new App(init3, update3, view2, new None());
 }
 function start3(app, selector, flags) {
   return guard(
@@ -683,15 +827,163 @@ function start3(app, selector, flags) {
   );
 }
 
+// build/dev/javascript/lustre/lustre/element/html.mjs
+function text2(content) {
+  return text(content);
+}
+function h1(attrs, children) {
+  return element("h1", attrs, children);
+}
+function div(attrs, children) {
+  return element("div", attrs, children);
+}
+function p(attrs, children) {
+  return element("p", attrs, children);
+}
+function a(attrs, children) {
+  return element("a", attrs, children);
+}
+
+// build/dev/javascript/hacker_news_lustre/sleep.mjs
+function sleep(ms, callback) {
+  new Promise((resolve) => setTimeout(resolve, ms)).then(() => callback());
+}
+
 // build/dev/javascript/hacker_news_lustre/hacker_news_lustre.mjs
+var State = class extends CustomType {
+  constructor(story_items) {
+    super();
+    this.story_items = story_items;
+  }
+};
+var HackerNewsItem = class extends CustomType {
+  constructor(id, title, url) {
+    super();
+    this.id = id;
+    this.title = title;
+    this.url = url;
+  }
+};
+var HasNotStartedYet = class extends CustomType {
+};
+var InProgress = class extends CustomType {
+};
+var Resolved = class extends CustomType {
+  constructor(x0) {
+    super();
+    this[0] = x0;
+  }
+};
+var Started = class extends CustomType {
+};
+var Finished = class extends CustomType {
+  constructor(x0) {
+    super();
+    this[0] = x0;
+  }
+};
+var LoadStoryItems = class extends CustomType {
+  constructor(x0) {
+    super();
+    this[0] = x0;
+  }
+};
+function init2(_) {
+  let initial_state = new State(new HasNotStartedYet());
+  let initial_effect = from2(
+    (dispatch) => {
+      return dispatch(new LoadStoryItems(new Started()));
+    }
+  );
+  return [initial_state, initial_effect];
+}
+function render_item(item) {
+  return div(
+    toList([]),
+    toList([
+      (() => {
+        let $ = item.url;
+        if ($ instanceof Some) {
+          let url = $[0];
+          return a(
+            toList([src(url), target("_blank")]),
+            toList([text(item.title)])
+          );
+        } else {
+          return p(toList([]), toList([text2(item.title)]));
+        }
+      })()
+    ])
+  );
+}
+function spinner() {
+  return div(
+    toList([style(toList([["textAlign", "center"], ["marginTop", "15"]]))]),
+    toList([text("Loading...")])
+  );
+}
+function render_error(error_message) {
+  return h1(
+    toList([style(toList([["color", "red"]]))]),
+    toList([text(error_message)])
+  );
+}
+function render_items(story_items) {
+  if (story_items instanceof HasNotStartedYet) {
+    return div(toList([]), toList([]));
+  } else if (story_items instanceof InProgress) {
+    return spinner();
+  } else if (story_items instanceof Resolved && !story_items[0].isOk()) {
+    let err = story_items[0][0];
+    return render_error(err);
+  } else {
+    let items = story_items[0][0];
+    return div(toList([]), map(items, render_item));
+  }
+}
+function view(state) {
+  return div(
+    toList([style(toList([["padding", "20px"]]))]),
+    toList([
+      h1(toList([]), toList([text("Lustre Hackernews")])),
+      render_items(state.story_items)
+    ])
+  );
+}
+function load_story_items(dispatch) {
+  return sleep(
+    1500,
+    () => {
+      let story_items = toList([
+        new HackerNewsItem(1, "Example title", new None())
+      ]);
+      dispatch(new LoadStoryItems(new Finished(new Ok(story_items))));
+      return void 0;
+    }
+  );
+}
+function update2(_, msg) {
+  if (msg instanceof LoadStoryItems && msg[0] instanceof Started) {
+    let next_state = new State(new InProgress());
+    return [next_state, from2(load_story_items)];
+  } else if (msg instanceof LoadStoryItems && msg[0] instanceof Finished && msg[0][0].isOk()) {
+    let story_items = msg[0][0][0];
+    let next_state = new State(new Resolved(new Ok(story_items)));
+    return [next_state, none()];
+  } else {
+    let err = msg[0][0][0];
+    let next_state = new State(new Resolved(new Error(err)));
+    return [next_state, none()];
+  }
+}
 function main() {
-  let app = element(text("Hello, world!"));
+  let app = application(init2, update2, view);
   let $ = start3(app, "#app", void 0);
   if (!$.isOk()) {
     throw makeError(
       "assignment_no_match",
       "hacker_news_lustre",
-      6,
+      34,
       "main",
       "Assignment pattern did not match",
       { value: $ }
