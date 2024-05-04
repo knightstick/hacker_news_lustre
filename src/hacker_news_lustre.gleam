@@ -1,5 +1,13 @@
+import gleam/dynamic
+import gleam/fetch
+import gleam/http/request
+import gleam/http/response.{type Response, Response}
+import gleam/int
+import gleam/javascript/promise.{type Promise}
+import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/result
 import lustre
 import lustre/attribute.{style}
 import lustre/effect.{type Effect}
@@ -48,7 +56,7 @@ fn update(_state, msg) -> #(State, Effect(Msg)) {
   case msg {
     LoadStoryItems(Started) -> {
       let next_state = State(story_items: InProgress)
-      #(next_state, effect.from(load_story_items))
+      #(next_state, load_story_items())
     }
     LoadStoryItems(Finished(Ok(story_items))) -> {
       let next_state = State(story_items: Resolved(Ok(story_items)))
@@ -100,16 +108,79 @@ fn render_error(error_message) {
   h1([style([#("color", "red")])], [element.text(error_message)])
 }
 
-fn load_story_items(dispatch) {
-  use <- sleep(1500)
-  let story_items = [HackerNewsItem(id: 1, title: "Example title", url: None)]
+const stories_endpoint = "https://hacker-news.firebaseio.com/v0/topstories.json"
 
-  dispatch(LoadStoryItems(Finished(Ok(story_items))))
+fn load_story_items() -> Effect(Msg) {
+  effect.from(fn(dispatch) {
+    load_item_ids()
+    |> promise.try_await(load_items_from_ids)
+    |> promise.map(fn(result) { LoadStoryItems(Finished(result)) })
+    |> promise.tap(fn(message) { dispatch(message) })
 
-  Nil
+    Nil
+  })
+}
+
+fn load_item_ids() -> Promise(Result(List(Int), String)) {
+  let assert Ok(req) = request.to(stories_endpoint)
+
+  fetch.send(req)
+  |> promise.try_await(fetch.read_bytes_body)
+  |> promise.map(result.map_error(_, fn(_) { "Fetch Error" }))
+  |> promise.try_await(fn(resp) {
+    let Response(_, _, body) = resp
+    promise.resolve(parse_ids(body))
+  })
+}
+
+fn parse_ids(body) -> Result(List(Int), _) {
+  let decoder = dynamic.list(dynamic.int)
+  json.decode_bits(body, decoder)
+  |> result.map_error(fn(_) { "Parse Error" })
+}
+
+fn load_items_from_ids(
+  ids: List(Int),
+) -> Promise(Result(List(HackerNewsItem), _)) {
+  ids
+  |> list.take(10)
+  |> list.map(load_story_item)
+  |> promise.await_list
+  |> promise.map(fn(list) { result.all(list) })
+}
+
+fn load_story_item(id) -> Promise(Result(HackerNewsItem, _)) {
+  let endpoint =
+    "https://hacker-news.firebaseio.com/v0/item/"
+    <> int.to_string(id)
+    <> ".json"
+
+  let assert Ok(req) = request.to(endpoint)
+
+  fetch.send(req)
+  |> promise.try_await(fetch.read_bytes_body)
+  |> promise.map(result.map_error(_, fn(_) { "Fetch Error" }))
+  |> promise.try_await(fn(resp) {
+    let Response(_, _, body) = resp
+    body
+    |> parse_item
+    |> result.map_error(fn(_) { "Parse Error" })
+    |> promise.resolve
+  })
+}
+
+fn parse_item(body) -> Result(HackerNewsItem, _) {
+  let decoder =
+    dynamic.decode3(
+      HackerNewsItem,
+      dynamic.field("id", dynamic.int),
+      dynamic.field("title", dynamic.string),
+      dynamic.optional_field("url", dynamic.string),
+    )
+  json.decode_bits(body, decoder)
 }
 
 @external(javascript, "./sleep.mjs", "sleep")
-pub fn sleep(_ms: Int, _callback: fn() -> Nil) -> Nil {
-  Nil
+pub fn sleep(_ms: Int, callback: fn() -> a) -> a {
+  callback()
 }
