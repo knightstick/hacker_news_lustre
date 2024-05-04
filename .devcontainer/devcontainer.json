@@ -1,0 +1,33 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.224.2/containers/gleam-erlang
+{
+  "name": "Gleam",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "GLEAM_VERSION": "v1.1.0"
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["Gleam.gleam", "tamasfe.even-better-toml"]
+    }
+  },
+
+  // Use 'forwardPorts' to make a list of ports inside the container available locally.
+  "forwardPorts": [],
+
+  // Use 'postCreateCommand' to run commands after the container is created.
+  // "postCreateCommand": "gleam -V"
+
+  // Uncomment to connect as a non-root user. See https://aka.ms/vscode-remote/containers/non-root.
+  "remoteUser": "vscode",
+
+  "features": {
+    "ghcr.io/devcontainers/features/node": {
+      "version": "lts",
+      "nodeGypDependencies": true
+    }
+  }
+}
